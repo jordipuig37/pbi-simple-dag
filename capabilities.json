@@ -1,0 +1,38 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "Source Node",
+            "name": "srcNode",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Target Node",
+            "name": "tgtNode",
+            "kind": "Grouping"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "conditions": [
+                { "srcNode": { "min": 1, "max": 1 },
+                  "tgtNode": { "min": 1, "max": 1 }
+                }
+            ],
+            "table": {
+                "rows": {
+                    "select": [{
+                            "for": {
+                                "in": "srcNode"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "tgtNode"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
