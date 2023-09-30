@@ -1,14 +1,25 @@
+
 {
     "dataRoles": [
         {
             "displayName": "Source Node",
             "name": "srcNode",
-            "kind": "Grouping"
+            "kind": "GroupingOrMeasure"
         },
         {
             "displayName": "Target Node",
             "name": "tgtNode",
-            "kind": "Grouping"
+            "kind": "GroupingOrMeasure"
+        },
+        {
+            "displayName": "Source Node Data",
+            "name": "srcDataNode",
+            "kind": "GroupingOrMeasure"
+        },
+        {
+            "displayName": "Target Node Data",
+            "name": "tgtDataNode",
+            "kind": "GroupingOrMeasure"
         }
     ],
     "dataViewMappings": [
@@ -16,13 +27,23 @@
             "table": {
                 "rows": {
                     "select": [{
-                            "for": {
-                                "in": "srcNode"
+                            "bind": {
+                                "to": "srcNode"
                             }
                         },
                         {
-                            "for": {
-                                "in": "tgtNode"
+                            "bind": {
+                                "to": "tgtNode"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "srcDataNode"
+                            }
+                        },
+                        {
+                            "bind": {
+                                "to": "tgtDataNode"
                             }
                         }
                     ]

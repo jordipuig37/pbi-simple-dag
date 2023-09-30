@@ -11,6 +11,10 @@ import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
+import {createTooltipServiceWrapper, ITooltipServiceWrapper} from "powerbi-visuals-utils-tooltiputils";
+import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
+import VisualTooltipDataItem = powerbi.extensibility.VisualTooltipDataItem;
+
 
 
 import * as d3Dag from 'd3-dag';
@@ -24,7 +28,6 @@ type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
 
 
 // import powerbi from "powerbi-visuals-api";
-import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 // import "./../style/visual.less";
 
 // import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
@@ -35,7 +38,9 @@ import { VisualFormattingSettingsModel } from "./settings";
 
 interface NodeData {
     id: string,
-    parentIds: string[]
+    parentIds: string[],
+    nodeData: PrimitiveValue,
+    selectionId: ISelectionId
 };
 
 export class Visual implements IVisual {
@@ -43,6 +48,7 @@ export class Visual implements IVisual {
     private host: IVisualHost;
     private nodeContainer: Selection<SVGElement>;
     private edgeContainer: Selection<SVGElement>;
+    private tooltipServiceWrapper: ITooltipServiceWrapper;
     
     private dagData: NodeData[];
     static Config = {
@@ -63,6 +69,9 @@ export class Visual implements IVisual {
     constructor(options: VisualConstructorOptions) {
         this.formattingSettingsService = new FormattingSettingsService();
         this.target = options.element;
+        this.host = options.host;
+
+        this.tooltipServiceWrapper = createTooltipServiceWrapper(this.host.tooltipService, options.element);
 
         this.svg = d3Select(options.element)
             .append('svg')
@@ -119,7 +128,7 @@ export class Visual implements IVisual {
             .attr('width', width)
             .attr('height', height);
 
-        this.nodeContainer.selectAll('circle')
+        const nodeSelection = this.nodeContainer.selectAll('circle')
             .data(dag.nodes())
             .join('circle')
             .attr('cx', (d) => (d.x / xMax) * (width-margins.left-margins.right) + margins.left)
@@ -137,6 +146,12 @@ export class Visual implements IVisual {
             .attr('y2', (d) => (d.points[d.points.length-1][1] / yMax) * (height-margins.top-margins.bottom) + margins.top)
             .attr('stroke', 'black')
             .attr('marker-end', 'url(#arrowhead)');
+
+        // add tooltips
+        this.tooltipServiceWrapper.addTooltip(nodeSelection,
+            (datapoint: NodeData) => this.getTooltipData(datapoint),
+            (datapoint: NodeData) => datapoint.selectionId
+        );
     }
 
     private extractDataPoints(options: VisualUpdateOptions): NodeData[] {
@@ -146,19 +161,41 @@ export class Visual implements IVisual {
         const graph: Record<string, NodeData> = {};
 
         // Step 1: Build a list of unique node IDs
-        const nodeIDs: string[] = Array.from(new Set(edges.flat().map((nd) => nd.toString())));
+        const uniqueNodesSet: Set<string> = new Set();
+
+        // Loop through the array and add values from both columns to the Set
+        for (const [source, target, snd, tnd] of edges) {
+            uniqueNodesSet.add(source.toString());
+            uniqueNodesSet.add(target.toString());
+        }
+
+        // Convert the Set back to an array to get the complete list of nodes
+        const nodeIDs = Array.from(uniqueNodesSet);
+        // const nodeIDs: string[] = Array.from(new Set(edges.map((row) => row[0].toString())));
 
         // Step 2: Initialize each node in the graph
         nodeIDs.forEach((id) => {
-            graph[id] = { id, parentIds: [] };
+            const selectionId: ISelectionId = this.host.createSelectionIdBuilder()
+                .createSelectionId();
+            graph[id] = { id, parentIds: [], nodeData: "", selectionId: selectionId };
         });
 
         // Step 3: Populate the parents for each node based on the edges
-        edges.forEach(([src, tgt]) => {
+        edges.forEach(([src, tgt, srcData, tgtData]) => {
             graph[tgt.toString()].parentIds.push(src.toString());
+            graph[src.toString()].nodeData = srcData;
+            graph[tgt.toString()].nodeData = tgtData;
         });
 
         return Object.values(graph);
+    }
+
+    private getTooltipData(value: any): VisualTooltipDataItem[] {
+        return [{
+            displayName: "Node data",
+            value: value.data.nodeData,
+            header: value.data.id.toString()
+        }];
     }
 
     /**
