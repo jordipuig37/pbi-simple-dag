@@ -45,6 +45,15 @@ export class Visual implements IVisual {
     private edgeContainer: Selection<SVGElement>;
     
     private dagData: NodeData[];
+    static Config = {
+        margins: {
+            top: 25,
+            bottom: 40,
+            left: 60,
+            right: 50
+        },
+        nodeRadius: 10
+    }
 
     // --- --- --- --- --- --- --- --- --- --- ---
     private target: HTMLElement;
@@ -65,6 +74,18 @@ export class Visual implements IVisual {
         this.edgeContainer = this.svg
             .append('g')
             .classed('edgeContainer', true);
+
+        // define arrow heads
+        this.svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('markerWidth', 10)
+        .attr('markerHeight', 10)
+        .attr('refX', 9 + 10)
+        .attr('refY', 3)
+        .attr('orient', 'auto')
+        .append('path')
+        .attr('d','M0,0 l0,6 9,-3 -9,-3 z')
+        .attr('fill', 'black');
     }
 
     public update(options: VisualUpdateOptions) {
@@ -73,6 +94,7 @@ export class Visual implements IVisual {
         const dag = stratify(this.dagData);
         const layout = d3Dag.sugiyama();
         layout(dag);
+        // TODO: find a way to directly map the points to an inner frame
         
 
         let width = options.viewport.width;
@@ -92,26 +114,29 @@ export class Visual implements IVisual {
             }
         }
 
-        // for (const { points } of links) {
-        //     pts.x.push(points[0]);   
-        //     pts.x.push(points[1]);   
-        // }
-
+        let margins = Visual.Config.margins;
         this.svg
             .attr('width', width)
             .attr('height', height);
-            // .append('text')
-            // .text(JSON.stringify(pts))
-            // .attr('x', 20)
-            // .attr('y', 100);
 
         this.nodeContainer.selectAll('circle')
             .data(dag.nodes())
             .join('circle')
-            .attr('cx', (d) => (d.x / xMax) * width)
-            .attr('cy', (d) => (d.y / yMax) * height)
-            .attr('r', 10)
+            .attr('cx', (d) => (d.x / xMax) * (width-margins.left-margins.right) + margins.left)
+            .attr('cy', (d) => (d.y / yMax) * (height-margins.top-margins.bottom) + margins.top)
+            .attr('r', Visual.Config.nodeRadius)
             .attr('fill', 'black');
+
+        this.edgeContainer.selectAll('.link')
+            .data(links)
+            .join('line')
+            .attr('class', 'link')
+            .attr('x1', (d) => (d.points[0][0] / xMax) * (width-margins.left-margins.right) + margins.left)
+            .attr('y1', (d) => (d.points[0][1] / yMax) * (height-margins.top-margins.bottom) + margins.top)
+            .attr('x2', (d) => (d.points[d.points.length-1][0] / xMax) * (width-margins.left-margins.right) + margins.left)
+            .attr('y2', (d) => (d.points[d.points.length-1][1] / yMax) * (height-margins.top-margins.bottom) + margins.top)
+            .attr('stroke', 'black')
+            .attr('marker-end', 'url(#arrowhead)');
     }
 
     private extractDataPoints(options: VisualUpdateOptions): NodeData[] {
