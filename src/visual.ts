@@ -77,15 +77,15 @@ export class Visual implements IVisual {
 
         // define arrow heads
         this.svg.append('defs').append('marker')
-        .attr('id', 'arrowhead')
-        .attr('markerWidth', 10)
-        .attr('markerHeight', 10)
-        .attr('refX', 9 + 10)
-        .attr('refY', 3)
-        .attr('orient', 'auto')
-        .append('path')
-        .attr('d','M0,0 l0,6 9,-3 -9,-3 z')
-        .attr('fill', 'black');
+            .attr('id', 'arrowhead')
+            .attr('markerWidth', 10)
+            .attr('markerHeight', 10)
+            .attr('refX', 9 + 10)
+            .attr('refY', 3)
+            .attr('orient', 'auto')
+            .append('path')
+            .attr('d','M0,0 l0,6 9,-3 -9,-3 z')
+            .attr('fill', 'black');
     }
 
     public update(options: VisualUpdateOptions) {
