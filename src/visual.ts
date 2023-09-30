@@ -58,7 +58,10 @@ export class Visual implements IVisual {
             left: 60,
             right: 50
         },
-        nodeRadius: 10
+        nodeRadius: 25,
+        nodeStrokeWidth: 3,
+        edgeWidth: 3,
+        arrowheadSize: 15
     }
 
     // --- --- --- --- --- --- --- --- --- --- ---
@@ -77,23 +80,25 @@ export class Visual implements IVisual {
             .append('svg')
             .classed('SimpleDAG', true);
 
-        this.nodeContainer = this.svg
-            .append('g');
-
+        // Note: the order of definition here impacts the final rendering
         this.edgeContainer = this.svg
             .append('g')
             .classed('edgeContainer', true);
 
+        this.nodeContainer = this.svg
+            .append('g');
+
         // define arrow heads
+        const arrowheadSize = Visual.Config.arrowheadSize; // Define the size of the arrowhead here.
         this.svg.append('defs').append('marker')
             .attr('id', 'arrowhead')
-            .attr('markerWidth', 10)
-            .attr('markerHeight', 10)
-            .attr('refX', 9 + 10)
-            .attr('refY', 3)
+            .attr('markerWidth', arrowheadSize)
+            .attr('markerHeight', arrowheadSize)
+            .attr('refX', arrowheadSize*0.9 + Visual.Config.nodeRadius*0.3)
+            .attr('refY', arrowheadSize * 0.3)
             .attr('orient', 'auto')
             .append('path')
-            .attr('d','M0,0 l0,6 9,-3 -9,-3 z')
+            .attr('d', `M0,0 l0,${arrowheadSize * 0.6} ${arrowheadSize * 0.9},-${arrowheadSize * 0.3} -${arrowheadSize + 0.9},-${arrowheadSize * 0.3} z`)
             .attr('fill', 'black');
     }
 
@@ -123,18 +128,11 @@ export class Visual implements IVisual {
             }
         }
 
+        let config = Visual.Config;
         let margins = Visual.Config.margins;
         this.svg
             .attr('width', width)
             .attr('height', height);
-
-        const nodeSelection = this.nodeContainer.selectAll('circle')
-            .data(dag.nodes())
-            .join('circle')
-            .attr('cx', (d) => (d.x / xMax) * (width-margins.left-margins.right) + margins.left)
-            .attr('cy', (d) => (d.y / yMax) * (height-margins.top-margins.bottom) + margins.top)
-            .attr('r', Visual.Config.nodeRadius)
-            .attr('fill', 'black');
 
         this.edgeContainer.selectAll('.link')
             .data(links)
@@ -144,8 +142,19 @@ export class Visual implements IVisual {
             .attr('y1', (d) => (d.points[0][1] / yMax) * (height-margins.top-margins.bottom) + margins.top)
             .attr('x2', (d) => (d.points[d.points.length-1][0] / xMax) * (width-margins.left-margins.right) + margins.left)
             .attr('y2', (d) => (d.points[d.points.length-1][1] / yMax) * (height-margins.top-margins.bottom) + margins.top)
-            .attr('stroke', 'black')
+            .attr('stroke', '#999')
+            .attr('stroke-width', config.edgeWidth)
             .attr('marker-end', 'url(#arrowhead)');
+
+        const nodeSelection = this.nodeContainer.selectAll('circle')
+            .data(dag.nodes())
+            .join('circle')
+            .attr('cx', (d) => (d.x / xMax) * (width-margins.left-margins.right) + margins.left)
+            .attr('cy', (d) => (d.y / yMax) * (height-margins.top-margins.bottom) + margins.top)
+            .attr('r', config.nodeRadius)
+            .attr('fill', '#0077B6')
+            .attr('stroke', '#333')
+            .attr('stroke-width', config.nodeStrokeWidth);
 
         // add tooltips
         this.tooltipServiceWrapper.addTooltip(nodeSelection,
@@ -192,10 +201,15 @@ export class Visual implements IVisual {
 
     private getTooltipData(value: any): VisualTooltipDataItem[] {
         return [{
-            displayName: "Node data",
-            value: value.data.nodeData,
-            header: value.data.id.toString()
-        }];
+                displayName: "Node data",
+                value: value.data.nodeData,
+                header: value.data.id.toString()
+            },
+            {
+                displayName: "New variable",
+                value: "dummy value"
+            }
+        ];
     }
 
     /**
