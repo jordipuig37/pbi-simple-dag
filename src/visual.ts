@@ -1,70 +1,139 @@
-/*
-*  Power BI Visual CLI
-*
-*  Copyright (c) Microsoft Corporation
-*  All rights reserved.
-*  MIT License
-*
-*  Permission is hereby granted, free of charge, to any person obtaining a copy
-*  of this software and associated documentation files (the ""Software""), to deal
-*  in the Software without restriction, including without limitation the rights
-*  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-*  copies of the Software, and to permit persons to whom the Software is
-*  furnished to do so, subject to the following conditions:
-*
-*  The above copyright notice and this permission notice shall be included in
-*  all copies or substantial portions of the Software.
-*
-*  THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-*  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-*  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-*  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-*  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-*  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-*  THE SOFTWARE.
-*/
 "use strict";
 
-import powerbi from "powerbi-visuals-api";
-import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
-import "./../style/visual.less";
+import powerbiVisualsApi from "powerbi-visuals-api";
+import powerbi = powerbiVisualsApi;
+import PrimitiveValue = powerbi.PrimitiveValue;
+import ISelectionId = powerbi.visuals.ISelectionId;
+import IVisualHost = powerbi.extensibility.visual.IVisualHost;
+import ISandboxExtendedColorPalette = powerbi.extensibility.ISandboxExtendedColorPalette;
+import ISelectionManager = powerbi.extensibility.ISelectionManager;
 
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import IVisual = powerbi.extensibility.visual.IVisual;
 
+
+import * as d3Dag from 'd3-dag';
+import {
+    select as d3Select
+}
+from "d3-selection";
+
+
+type Selection<T1, T2 = T1> = d3.Selection<any, T1, any, T2>;
+
+
+// import powerbi from "powerbi-visuals-api";
+import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
+// import "./../style/visual.less";
+
+// import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
+// import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
+// import IVisual = powerbi.extensibility.visual.IVisual;
+
 import { VisualFormattingSettingsModel } from "./settings";
 
+interface NodeData {
+    id: string,
+    parentIds: string[]
+};
+
 export class Visual implements IVisual {
+    private svg: Selection<any>;
+    private host: IVisualHost;
+    private nodeContainer: Selection<SVGElement>;
+    private edgeContainer: Selection<SVGElement>;
+    
+    private dagData: NodeData[];
+
+    // --- --- --- --- --- --- --- --- --- --- ---
     private target: HTMLElement;
-    private updateCount: number;
-    private textNode: Text;
     private formattingSettings: VisualFormattingSettingsModel;
     private formattingSettingsService: FormattingSettingsService;
 
     constructor(options: VisualConstructorOptions) {
-        console.log('Visual constructor', options);
         this.formattingSettingsService = new FormattingSettingsService();
         this.target = options.element;
-        this.updateCount = 0;
-        if (document) {
-            const new_p: HTMLElement = document.createElement("p");
-            new_p.appendChild(document.createTextNode("Update count:"));
-            const new_em: HTMLElement = document.createElement("em");
-            this.textNode = document.createTextNode(this.updateCount.toString());
-            new_em.appendChild(this.textNode);
-            new_p.appendChild(new_em);
-            this.target.appendChild(new_p);
-        }
+
+        this.svg = d3Select(options.element)
+            .append('svg')
+            .classed('SimpleDAG', true);
+
+        this.nodeContainer = this.svg
+            .append('g');
+
+        this.edgeContainer = this.svg
+            .append('g')
+            .classed('edgeContainer', true);
     }
 
     public update(options: VisualUpdateOptions) {
-        this.formattingSettings = this.formattingSettingsService.populateFormattingSettingsModel(VisualFormattingSettingsModel, options.dataViews);
+        this.dagData = this.extractDataPoints(options);
+        const stratify = d3Dag.graphStratify();
+        const dag = stratify(this.dagData);
+        const layout = d3Dag.sugiyama();
+        layout(dag);
+        
 
-        console.log('Visual update', options);
-        if (this.textNode) {
-            this.textNode.textContent = (this.updateCount++).toString();
+        let width = options.viewport.width;
+        let height = options.viewport.height;
+
+        const layers = dag.nodes();
+        const links = dag.links();
+        let xMax = 0;
+        let yMax = 0;
+        let pts: {x: number[][]} = {x:[]}
+        for (const { x, y } of layers) {
+            if (x > xMax) {
+                xMax = x;
+            }
+            if (y > yMax) {
+                yMax = y;
+            }
         }
+
+        // for (const { points } of links) {
+        //     pts.x.push(points[0]);   
+        //     pts.x.push(points[1]);   
+        // }
+
+        this.svg
+            .attr('width', width)
+            .attr('height', height);
+            // .append('text')
+            // .text(JSON.stringify(pts))
+            // .attr('x', 20)
+            // .attr('y', 100);
+
+        this.nodeContainer.selectAll('circle')
+            .data(dag.nodes())
+            .join('circle')
+            .attr('cx', (d) => (d.x / xMax) * width)
+            .attr('cy', (d) => (d.y / yMax) * height)
+            .attr('r', 10)
+            .attr('fill', 'black');
+    }
+
+    private extractDataPoints(options: VisualUpdateOptions): NodeData[] {
+        let table = options.dataViews[0].table;
+        let edges = table.rows;
+
+        const graph: Record<string, NodeData> = {};
+
+        // Step 1: Build a list of unique node IDs
+        const nodeIDs: string[] = Array.from(new Set(edges.flat().map((nd) => nd.toString())));
+
+        // Step 2: Initialize each node in the graph
+        nodeIDs.forEach((id) => {
+            graph[id] = { id, parentIds: [] };
+        });
+
+        // Step 3: Populate the parents for each node based on the edges
+        edges.forEach(([src, tgt]) => {
+            graph[tgt.toString()].parentIds.push(src.toString());
+        });
+
+        return Object.values(graph);
     }
 
     /**

@@ -1,1 +1,26 @@
-{"visual":{"name":"pbiSimpleDag","displayName":"pbiSimpleDag","guid":"pbiSimpleDag0BB2E7810A434F3FB8F47197F3D1B9C1","visualClassName":"Visual","version":"1.0.0.0","description":"","supportUrl":"","gitHubUrl":""},"apiVersion":"5.3.0","author":{"name":"","email":""},"assets":{"icon":"assets/icon.png"},"externalJS":null,"style":"style/visual.less","capabilities":"capabilities.json","dependencies":null,"stringResources":[],"version":"1.0.0.0"}
+{
+    "visual": {
+      "name": "pbiSimpleDAG",
+      "displayName": "Simple Dag",
+      "guid": "pbiSimpleDAG",
+      "visualClassName": "Visual",
+      "version": "0.1.0",
+      "description": "Simple DAG Visual",
+      "supportUrl": "https://github.com/jordipuig37",
+      "gitHubUrl": "https://github.com/jordipuig37"
+    },
+    "apiVersion": "5.3.0",
+    "author": {
+      "name": "Jordi Puig Rabat",
+      "email": "jordipuig37@gmail.com"
+    },
+    "assets": {
+      "icon": "assets/icon.png"
+    },
+    "externalJS": null,
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": [],
+    "version": "1.0.0.0"
+  }
