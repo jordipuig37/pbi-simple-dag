@@ -19,10 +19,13 @@ To display a DAG the directed edges (src, tgt) need to be specified. Additionall
 ## Contributing
 
 This is a personal project and its main goal is to learn how to develop Power BI custom visuals. Nevertheless contributions are welcome.
+
+### Next Steps
+
 Here is a list of next steps that I have the intention to implement:
 
-- [] Edge data: add a variable that informs some data of the edges. It should be displayed in a box over the edges.
-- [] Improve performance and modularity of the code.
+- [ ] Edge data: add a variable that informs some data of the edges. It should be displayed in a box over the edges.
+- [ ] Improve performance and modularity of the code.
 
 ## License
 
